@@ -33,13 +33,14 @@
 
 //#define DEBUG_CLUSTERING
 
+float detectNet::IOUThreshold = 0.4f;
 
 // constructor
 detectNet::detectNet() : tensorNet()
 {
 	mCoverageThreshold = 0.5f;
 	mMeanPixel         = 0.0f;
-	
+
 	mClassColors[0] = NULL;	// cpu ptr
 	mClassColors[1] = NULL; // gpu ptr
 }
@@ -51,6 +52,10 @@ detectNet::~detectNet()
 	
 }
 
+void detectNet::SetIOUThreshold(float iou)
+{
+	detectNet::IOUThreshold = iou;
+}
 
 // Create
 detectNet* detectNet::Create( const char* prototxt, const char* model, float mean_pixel, float threshold, const char* input_blob, const char* coverage_blob, const char* bbox_blob, uint32_t maxBatchSize )
@@ -275,11 +280,28 @@ static inline float6 make_float6( float x, float y, float z, float w, float v, f
 
 inline static bool rectOverlap(const float6& r1, const float6& r2)
 {
-    return ! ( r2.x > r1.z  
+    // x -> left, y -> top, z -> right, w -> bottom
+    if (( r2.x > r1.z  
         || r2.z < r1.x
         || r2.y > r1.w
         || r2.w < r1.y
-        );
+        ))
+    {
+       return false;
+    }
+
+    float area_1 = (r1.z - r1.x) * (r1.w - r1.y);
+    float area_2 = (r2.z - r2.x) * (r2.w - r2.y);
+
+    float intersection_left = std::max(r1.x, r2.x);
+    float intersection_top = std::max(r1.y, r2.y);
+    float intersection_right = std::min(r1.z, r2.z);
+    float intersection_bottom = std::min(r1.w, r2.w);
+    float intersection_area = (intersection_right - intersection_left) *
+                              (intersection_bottom - intersection_top);
+
+    float iou = intersection_area / (area_1 + area_2 - intersection_area);
+    return iou > detectNet::IOUThreshold;
 }
 
 static void mergeRect( std::vector<float6>& rects, const float6& rect )

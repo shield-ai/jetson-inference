@@ -166,14 +166,16 @@ public:
 	 */
 	void SetClassColor( uint32_t classIndex, float r, float g, float b, float a=255.0f );
 	
-	
+	static void SetIOUThreshold(float iou);
+	static float IOUThreshold;
+
 protected:
 
 	// constructor
 	detectNet();
 	bool defaultColors();
-	
 	float  mCoverageThreshold;
+	
 	float* mClassColors[2];
 	float  mMeanPixel;
 };
